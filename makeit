@@ -1,0 +1,12 @@
+cd ~/cscc69/starter-code/src/kern/conf
+./config ASST1
+
+cd ../compile/ASST1
+bmake depend
+bmake
+cd ~/cscc69/starter-code/src/kern/compile/ASST1
+#bmake install
+
+#cd ../../..
+#bmake
+#bmake install
