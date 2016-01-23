@@ -100,7 +100,7 @@ runprogram(char *progname, unsigned long nargs, char **args)
 	kprintf("before \n");
 	for (i = nargs; i > 0; i--) {
 	  /* Calulate length of arg[i] */
-	  int len_arg = strlen(args[i - 1]) + 1;
+	  int len_arg = sizeof(args[i - 1]);
 	  kprintf("%d length of arg \n", len_arg);
 	  /* calulate the amount of padding we need */
 	  int remainder = (4 - (len_arg % 4)) % 4;
@@ -112,15 +112,33 @@ runprogram(char *progname, unsigned long nargs, char **args)
 	    j++;
 	  }
 	  total_len += len_arg + remainder;
-	  args[i - 1] = (char *) (stackptr - total_len);
-	  copyout(args[i - 1], (void *) (stackptr - total_len), len_arg);
-	  copyout(end, (void *) (stackptr - total_len + len_arg), remainder);
+	  /*args[i - 1] = (char *) (stackptr - total_len);*/
+	  copyout((void *)args[i - 1], (userptr_t)(stackptr - total_len), len_arg);
+	  copyout((void *)end, (userptr_t)(stackptr - total_len + len_arg), remainder);
 	}
 	kprintf("after \n");
-	copyout(args, (void *) (stackptr - total_len - size_args), size_args); 
+	/* need to do the padding for the args aswell */
+   	
+   	/* trying to align the last item on the stack */
+    int len_array = sizeof(args);
+    int array_remainder = (4 - (len_array % 4)) % 4;
+    char arrgs_end[array_remainder];
+    int r_counter = 0;
+    while (r_counter < array_remainder) {
+   		arrgs_end[r_counter] = '\0';
+	    	r_counter++;
+	  }
+	  
+
+ 
+	copyout(args, (userptr_t) (stackptr - total_len - len_array - array_remainder), size_args); 
+   
+	copyout(arrgs_end, (userptr_t) (stackptr - total_len - len_array), array_remainder);
+
+
 	kprintf("add \n"); 
 	/* Warp to user mode. */
-	enter_new_process(nargs /*argc*/, (userptr_t) (stackptr - total_len - size_args) /*userspace addr of argv*/,
+	enter_new_process(nargs /*argc*/, (userptr_t) (stackptr - total_len - len_array - array_remainder) /*userspace addr of argv*/,
 			  stackptr, entrypoint);
 	
 	/* enter_new_process does not return. */
