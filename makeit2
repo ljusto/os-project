@@ -1,4 +1,4 @@
-cd ~/cscc69/os-project/src/kern/compile/ASST1
+cd ~/cscc69/starter-code/src/kern/compile/ASST1
 bmake install
 cd ../../..
 bmake
