@@ -356,11 +356,41 @@ pid_exit(int status, bool dodetach)
 int
 pid_join(pid_t targetpid, int *status, int flags)
 {
-	(void)targetpid;
-	(void)status;
-	(void)flags;
-	
+	struct pidinfo *pid;	
 	// Implement me.
+	thread_yield();
+	lock_acquire(pidlock);
+	if ((pid = pi_get(targetpid)) == NULL) {
+	  	*status = ESRCH;
+	  	lock_release(pidlock);
+	  	return *status;
+        }
+	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
+	  	*status = EINVAL;
+	  	lock_release(pidlock);
+	  	return *status;
+        }
+	if ((pid->pi_ppid == INVALID_PID)) {
+	  	*status = EINVAL;
+	  	lock_release(pidlock);
+	  	return *status;
+	}
+	if (!pid->pi_exited) {
+	    if (flags) {
+	      	lock_release(pidlock);
+	      	return flags;
+	    }
+        else {
+        	cv_wait(pid->pi_cv, pidlock);
+	  	}
+      	if (status != NULL) {
+	  		*status = EDEADLK;
+	  		lock_release(pidlock);
+	  		return *status;
+       	}
+    }
+	*status = pid->pi_exitstatus;
+	lock_release(pidlock);
 	KASSERT(false);
-	return EUNIMP;
+	return 0;
 }
