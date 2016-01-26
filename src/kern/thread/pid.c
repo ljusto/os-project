@@ -314,11 +314,22 @@ pid_unalloc(pid_t theirpid)
 int
 pid_detach(pid_t childpid)
 {
-	(void)childpid;
-	
-	// Implement me
-	KASSERT(false);
-	return EUNIMP;
+	struct pidinfo *child;
+	lock_acquire(pidlock);
+	if ((child = pi_get(childpid)) == NULL) {
+	  	lock_release(pidlock);
+	  	return ESRCH;
+    }
+    if ((child->pi_pid == INVALID_PID) || (child->pi_pid == curthread->t_pid)) {
+	  	lock_release(pidlock);
+	  	return EINVAL;
+        }
+    child->pi_ppid = (pid_t) NULL;
+    if (child->pi_exited) {
+    	pi_drop(child->pi_pid);
+    }
+    lock_release(pidlock);
+	return 0;
 }
 
 /*
@@ -376,9 +387,9 @@ pid_join(pid_t targetpid, int *status, int flags)
 	  	return *status;
 	}
 	if (!pid->pi_exited) {
-	    if (flags) {
+	    if (flags == WNOHANG) {
 	      	lock_release(pidlock);
-	      	return flags;
+	      	*status = 0;
 	    }
         else {
         	cv_wait(pid->pi_cv, pidlock);
@@ -391,6 +402,5 @@ pid_join(pid_t targetpid, int *status, int flags)
     }
 	*status = pid->pi_exitstatus;
 	lock_release(pidlock);
-	KASSERT(false);
 	return 0;
 }
