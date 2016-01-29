@@ -503,11 +503,11 @@ thread_fork(const char *name,
 {
 	struct thread *newthread;
 	int result;
-
 	newthread = thread_create(name);
 	if (newthread == NULL) {
 		return ENOMEM;
 	}
+
 
 	/* Allocate a stack */
 	newthread->t_stack = kmalloc(STACK_SIZE);
@@ -576,7 +576,9 @@ thread_fork(const char *name,
 	if (ret != NULL) {
 		*ret = newthread->t_pid;
 	}
-
+	else {
+		pid_detach((int) ret);
+	}
 	return 0;
 }
 
@@ -831,18 +833,16 @@ void
 thread_exit(int exitcode)
 {
 	struct thread *cur;
-        (void)exitcode;  // suppress warning until code gets written
-
 	cur = curthread;
-
+	pid_exit(exitcode, (cur->t_addrspace != NULL));
 	/* VFS fields */
 	if (cur->t_cwd) {
 		VOP_DECREF(cur->t_cwd);
 		cur->t_cwd = NULL;
 	}
-
 	/* VM fields */
 	if (cur->t_addrspace) {
+		// if cur->t_addrspace not null, we know we are in user space
 		/*
 		 * Clear t_addrspace before calling as_destroy. Otherwise
 		 * if as_destroy sleeps (which is quite possible) when we

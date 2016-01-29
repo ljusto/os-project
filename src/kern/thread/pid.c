@@ -315,7 +315,9 @@ int
 pid_detach(pid_t childpid)
 {
 	struct pidinfo *child;
-	lock_acquire(pidlock);
+	if (!lock_do_i_hold(pidlock)) {
+		lock_acquire(pidlock);
+	}
 	if ((child = pi_get(childpid)) == NULL) {
 	  	lock_release(pidlock);
 	  	return ESRCH;
@@ -323,7 +325,7 @@ pid_detach(pid_t childpid)
     if ((child->pi_pid == INVALID_PID) || (child->pi_pid == curthread->t_pid)) {
 	  	lock_release(pidlock);
 	  	return EINVAL;
-        }
+    }
     child->pi_ppid = (pid_t) NULL;
     if (child->pi_exited) {
     	pi_drop(child->pi_pid);
@@ -345,16 +347,28 @@ void
 pid_exit(int status, bool dodetach)
 {
 	struct pidinfo *my_pi;
-	
-	(void)dodetach; /* for compiler - delete when dodetach has real use */
-
-	// Implement me. Existing code simply sets the exit status.
 	lock_acquire(pidlock);
-
-	my_pi = pi_get(curthread->t_pid);
+	if ((my_pi = pi_get(curthread->t_pid)) == NULL) {
+		lock_release(pidlock);
+		return;
+	}
 	KASSERT(my_pi != NULL);
 	my_pi->pi_exitstatus = status;
+	my_pi->pi_exited = true;
+	if (dodetach) {
+		for (int i = 0; i < PROCS_MAX; i++) {
+			if (pidinfo[i]->pi_ppid == my_pi->pi_pid) {
+				pid_detach(pidinfo[i]->pi_pid);
+			}
+		}
+	}
+	/*
+	if (my_pi->pi_ppid == INVALID_PID) {
+		pi_drop(my_pi->pi_pid);
+	} 
+	*/
 
+	cv_broadcast(my_pi->pi_cv, pidlock);
 	lock_release(pidlock);
 }
 
@@ -372,35 +386,33 @@ pid_join(pid_t targetpid, int *status, int flags)
 	thread_yield();
 	lock_acquire(pidlock);
 	if ((pid = pi_get(targetpid)) == NULL) {
-	  	*status = ESRCH;
 	  	lock_release(pidlock);
-	  	return *status;
+	  	return ESRCH * (-1);
         }
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
-	  	*status = EINVAL;
 	  	lock_release(pidlock);
-	  	return *status;
+	  	return EINVAL * (-1);
         }
 	if ((pid->pi_ppid == INVALID_PID)) {
 	  	*status = EINVAL;
 	  	lock_release(pidlock);
-	  	return *status;
+	  	return EINVAL * (-1);
 	}
+	if (curthread->t_pid == pid->pi_pid) {
+	  		lock_release(pidlock);
+	  		return EDEADLK * (-1);
+    }
 	if (!pid->pi_exited) {
 	    if (flags == WNOHANG) {
 	      	lock_release(pidlock);
 	      	*status = 0;
+	      	return *status;
 	    }
         else {
         	cv_wait(pid->pi_cv, pidlock);
 	  	}
-      	if (status != NULL) {
-	  		*status = EDEADLK;
-	  		lock_release(pidlock);
-	  		return *status;
-       	}
     }
 	*status = pid->pi_exitstatus;
 	lock_release(pidlock);
-	return 0;
+	return *status;
 }
