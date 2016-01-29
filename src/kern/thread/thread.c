@@ -577,7 +577,7 @@ thread_fork(const char *name,
 		*ret = newthread->t_pid;
 	}
 	else {
-		pid_detach((int) ret);
+		pid_detach(newthread->t_pid);
 	}
 	return 0;
 }

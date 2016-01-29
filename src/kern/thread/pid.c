@@ -321,15 +321,15 @@ pid_detach(pid_t childpid)
 	if ((child = pi_get(childpid)) == NULL) {
 	  	lock_release(pidlock);
 	  	return ESRCH;
-    }
-    if ((child->pi_pid == INVALID_PID) || (child->pi_pid == curthread->t_pid)) {
+    	}
+    	if ((child->pi_pid == INVALID_PID) || (child->pi_pid == BOOTUP_PID)) {
 	  	lock_release(pidlock);
 	  	return EINVAL;
     }
-    child->pi_ppid = (pid_t) NULL;
-    if (child->pi_exited) {
-    	pi_drop(child->pi_pid);
-    }
+    child->pi_ppid = INVALID_PID;
+    //if (child->pi_exited) {
+    	//pi_drop(child->pi_pid);
+    //}
     lock_release(pidlock);
 	return 0;
 }
@@ -353,22 +353,20 @@ pid_exit(int status, bool dodetach)
 		return;
 	}
 	KASSERT(my_pi != NULL);
-	my_pi->pi_exitstatus = status;
-	my_pi->pi_exited = true;
+	kprintf("dodetach: %d\n", (int) dodetach);
 	if (dodetach) {
 		for (int i = 0; i < PROCS_MAX; i++) {
-			if (pidinfo[i]->pi_ppid == my_pi->pi_pid) {
+			if (pidinfo[i] != NULL && pidinfo[i]->pi_ppid == my_pi->pi_pid) {
 				pid_detach(pidinfo[i]->pi_pid);
 			}
 		}
 	}
-	/*
-	if (my_pi->pi_ppid == INVALID_PID) {
-		pi_drop(my_pi->pi_pid);
-	} 
-	*/
-
+	my_pi->pi_exitstatus = status;
+	my_pi->pi_exited = true;
 	cv_broadcast(my_pi->pi_cv, pidlock);
+	if ((my_pi->pi_ppid == INVALID_PID)) {
+		pi_drop(my_pi->pi_pid);
+	}
 	lock_release(pidlock);
 }
 
@@ -383,34 +381,30 @@ pid_join(pid_t targetpid, int *status, int flags)
 {
 	struct pidinfo *pid;	
 	// Implement me.
-	thread_yield();
 	lock_acquire(pidlock);
-	if ((pid = pi_get(targetpid)) == NULL) {
+	pid = pi_get(targetpid);
+	if (pid == NULL) {
 	  	lock_release(pidlock);
 	  	return ESRCH * (-1);
         }
+	/* check if current thread is invalid pid or kernel level process */ 
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
+		kprintf("FIRST CASE\n");
 	  	lock_release(pidlock);
 	  	return EINVAL * (-1);
-        }
+    	}
+    	if (curthread->t_pid == pid->pi_pid) {
+	  	lock_release(pidlock);
+	  	return EDEADLK * (-1);
+    	}
+	/* check for the detached state */ 
 	if ((pid->pi_ppid == INVALID_PID)) {
-	  	*status = EINVAL;
-	  	lock_release(pidlock);
-	  	return EINVAL * (-1);
+	  kprintf("SECOND CASE\n");
+	  lock_release(pidlock);
+	  return EINVAL * (-1);
 	}
-	if (curthread->t_pid == pid->pi_pid) {
-	  		lock_release(pidlock);
-	  		return EDEADLK * (-1);
-    }
-	if (!pid->pi_exited) {
-	    if (flags == WNOHANG) {
-	      	lock_release(pidlock);
-	      	*status = 0;
-	      	return *status;
-	    }
-        else {
-        	cv_wait(pid->pi_cv, pidlock);
-	  	}
+	if (!pid->pi_exited && flags != WNOHANG) {
+        cv_wait(pid->pi_cv, pidlock);
     }
 	*status = pid->pi_exitstatus;
 	lock_release(pidlock);
