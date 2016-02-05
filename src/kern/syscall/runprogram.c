@@ -93,26 +93,34 @@ runprogram(char *progname, unsigned long nargs, char **args)
 		/* thread_exit destroys curthread->t_addrspace */
 		return result;
 	}
+
+	/* getting the memory space for number of arguments including the null space at the end */
 	char **argv = (char **) kmalloc(sizeof(char *) * (nargs + 1));
         unsigned int i;
 	for (i = 0; i < nargs; i++) {
   	  char * arg;
   	  /* Calulate length of arg[i] */
   	  int len_arg = strlen(args[i]) + 1;
+  	  /* calculate number of byte we need to pad to the end of each argument "multiple of 4" */
   	  int remainder = (4 - (len_arg % 4)) % 4;
+  	  /* setting up the memory for the argument (after padding) */
   	  arg = kmalloc((len_arg + remainder) * sizeof(char));
   	  int j = 0;
+  	  /* case we need add null for padding */
   	  while (j < len_arg + remainder) {
     	    if (j >= len_arg) {
 	      arg[j] = '\0';
 	      j++;
 	    }
+	    /* other wise just add the character to the argument*/
 	    else {
 	      arg[j] = args[i][j];
 	      j++;
 	    }
           }
+      /* every time we add the argument to stack, we set the stackptr to store that argument*/
   	  stackptr -= len_arg + remainder;
+  	  /* copy the argument to the userspace using stackptr*/
   	  result = copyout((const void *)arg, (userptr_t) stackptr,
 	    (size_t) (len_arg + remainder));
           if (result) {
@@ -126,7 +134,9 @@ runprogram(char *progname, unsigned long nargs, char **args)
 	if(args[nargs] == NULL){
 		stackptr -= 4 * sizeof(char);
 	}
+	/* set the stackptr to store the list of arguments */
           stackptr -= sizeof(char *) * (nargs + 1);
+          /* copy the list  of arguments to the userspace using stackptr*/
           result = copyout((const void *) (argv), (userptr_t) stackptr,
 		 sizeof(char *) * (nargs + 1));
           if(result) {
@@ -135,6 +145,7 @@ runprogram(char *progname, unsigned long nargs, char **args)
           }
         kfree(argv);
 	/* Warp to user mode. */
+        /* after stackptr is setup in the user space, enter the new process*/
 	enter_new_process((int) nargs /*argc*/, (userptr_t) stackptr /*userspace addr of argv*/,
 			  stackptr, entrypoint);
 	/* enter_new_process does not return. */
