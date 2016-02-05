@@ -52,12 +52,33 @@ sys_fork(struct trapframe *tf, pid_t *retval)
  * Placeholder to remind you to implement this.
  */
 
+pid_t
+sys_getpid()
+{
+	return curthread->t_pid; 
+}
+	
 
 /*
  * sys_waitpid
  * Placeholder comment to remind you to implement this.
  */
 
+pid_t 
+waitpid(pid_t pid, int *status, int options)
+{
+	if (!options) {
+		return EINVAL;
+	}
+	if (status == NULL) {
+		return EFAULT;
+	}
+	// ESRCH handled in pid_join
+	if (!pi_get(pid)->pi_ppid == sys_getpid()) {
+		return ECHILD;
+	}
+	return pid_join(pid, *status, options);
+}
 
 /*
  * sys_kill
