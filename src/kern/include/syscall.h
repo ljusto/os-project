@@ -66,6 +66,9 @@ int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 int sys_fork(struct trapframe *tf, pid_t *retval);
 int sys_read(int fd, userptr_t buf, size_t size, int *retval);
 int sys_write(int fd, userptr_t buf, size_t size, int *retval);
+pid_t sys_getpid();
+pid_t waitpid(pid_t pid, int *status, int options);
+
 
 /*
  * ASST1 - Prototypes for new bootstrap/shutdown functions needed by syscalls

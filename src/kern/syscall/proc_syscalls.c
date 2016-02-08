@@ -74,9 +74,17 @@ waitpid(pid_t pid, int *status, int options)
 		return EFAULT;
 	}
 	// ESRCH handled in pid_join
+	/*
 	if (!pi_get(pid)->pi_ppid == sys_getpid()) {
 		return ECHILD;
 	}
+    */
+    
+
+    // cannot wait for ourselves
+    if (pid == curthread->t_pid) {
+        return ECHILD;
+    }
 	return pid_join(pid, *status, options);
 }
 

@@ -348,6 +348,7 @@ pid_exit(int status, bool dodetach)
 {
 	struct pidinfo *my_pi;
 	lock_acquire(pidlock);
+	/* critical section start */
 	if ((my_pi = pi_get(curthread->t_pid)) == NULL) {
 		lock_release(pidlock);
 		return;
@@ -355,9 +356,14 @@ pid_exit(int status, bool dodetach)
 	KASSERT(my_pi != NULL);
 	kprintf("dodetach: %d\n", (int) dodetach);
 	if (dodetach) {
+		kprintf("entered dodetach loop\n")
 		for (int i = 0; i < PROCS_MAX; i++) {
+			// if the process is not empty and if its parent is ourselves
+			// then we will detach 
 			if (pidinfo[i] != NULL && pidinfo[i]->pi_ppid == my_pi->pi_pid) {
+				kprintf("attempting to detach\n");
 				pid_detach(pidinfo[i]->pi_pid);
+				kprintf("detatched successfully\n");
 			}
 		}
 	}
@@ -367,6 +373,7 @@ pid_exit(int status, bool dodetach)
 	if ((my_pi->pi_ppid == INVALID_PID)) {
 		pi_drop(my_pi->pi_pid);
 	}
+	/* critical section end */
 	lock_release(pidlock);
 }
 
