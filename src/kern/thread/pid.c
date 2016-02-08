@@ -335,6 +335,24 @@ pid_detach(pid_t childpid)
 }
 
 /*
+ * match_parent
+ * - returns if pidA is a child of pidB
+ * - returns false if pidA or pidB does not exist.
+ */
+bool
+is_parent(pid_t pidA, pid_t pidB) {
+    lock_acquire(pidlock);
+    pidinfo *child = pi_get(pidA);
+    if (child == NULL) {
+        kprintf("child (first arg) does not exist!\n");
+        lock_release(pidlock);
+        return false;
+    }
+    lock_release(pidlock);
+    return (child->pi_ppid == pidB);
+}
+
+/*
  * pid_exit 
  *  - sets the exit status of this thread (i.e. curthread). 
  *  - disowns children. 
@@ -393,22 +411,22 @@ pid_join(pid_t targetpid, int *status, int flags)
 	if (pid == NULL) {
 	  	lock_release(pidlock);
 	  	return ESRCH * (-1);
-        }
+    }
 	/* check if current thread is invalid pid or kernel level process */ 
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
 		kprintf("FIRST CASE\n");
 	  	lock_release(pidlock);
 	  	return EINVAL * (-1);
-    	}
-    	if (curthread->t_pid == pid->pi_pid) {
+    }
+    if (curthread->t_pid == pid->pi_pid) {
 	  	lock_release(pidlock);
 	  	return EDEADLK * (-1);
-    	}
+    }
 	/* check for the detached state */ 
 	if ((pid->pi_ppid == INVALID_PID)) {
-	  kprintf("SECOND CASE\n");
-	  lock_release(pidlock);
-	  return EINVAL * (-1);
+	    kprintf("SECOND CASE\n");
+	    lock_release(pidlock);
+	    return EINVAL * (-1);
 	}
 	if (!pid->pi_exited && flags != WNOHANG) {
         cv_wait(pid->pi_cv, pidlock);

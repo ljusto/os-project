@@ -11,6 +11,7 @@
 #include <pid.h>
 #include <machine/trapframe.h>
 #include <syscall.h>
+#include <wait.h>
 
 /*
  * sys_fork
@@ -67,7 +68,7 @@ sys_getpid()
 pid_t 
 waitpid(pid_t pid, int *status, int options)
 {
-	if (!options) {
+	if (!options || options != WNOHANG) {
 		return EINVAL;
 	}
 	if (status == NULL) {
@@ -79,13 +80,19 @@ waitpid(pid_t pid, int *status, int options)
 		return ECHILD;
 	}
     */
-    
+    // checks if pid is a child of current process
+    if (!is_parent(pid, curthread->t_pid)) {
+        return ECHILD;
+    }
 
     // cannot wait for ourselves
     if (pid == curthread->t_pid) {
         return ECHILD;
     }
-	return pid_join(pid, *status, options);
+    // WNOHANG to not wait for process, options to wait
+	int ret = pid_join(pid, status, options);
+    kprintf("status: %d\n", ret);
+    return ret;
 }
 
 /*

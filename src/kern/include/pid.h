@@ -70,5 +70,9 @@ void pid_exit(int status, bool dodetach);
  */
 int pid_join(pid_t targetpid, int *status, int flags);
 
+/*
+ * Returns if pidA is a child of pidB
+ */
+bool is_parent(pid_t pidA, pid_t pidB);
 
 #endif /* _PID_H_ */
