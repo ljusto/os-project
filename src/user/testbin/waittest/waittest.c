@@ -27,6 +27,7 @@ dofork(int exitval, int nloops)
 			pid = getpid();
 		}
 		warnx("child exiting with %d.",exitval);
+		
 		exit(exitval);
 	}
 	return pid;
@@ -45,6 +46,7 @@ main()
 	warnx("Creating long-running child.  Parent should have to wait.");
 	pid = dofork(10, 10000);
 	result = waitpid(pid, &status, 0);
+	warnx("pid %d and result %d\n", pid, result);
 	if (result != pid) {
 		warn("unexpected result %d from waitpid, status %d.",result,status);
 	} else {

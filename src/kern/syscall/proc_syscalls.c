@@ -68,29 +68,33 @@ sys_getpid()
 pid_t 
 waitpid(pid_t pid, int *status, int options)
 {
-	if (!options || options != WNOHANG) {
-		return EINVAL;
-	}
-	if (status == NULL) {
-		return EFAULT;
-	}
+    if (options != 0 || options != WNOHANG) {
+	return EINVAL;
+    }
+    if (status == NULL) {
+	return EFAULT;
+    }
 	// ESRCH handled in pid_join
 	/*
 	if (!pi_get(pid)->pi_ppid == sys_getpid()) {
 		return ECHILD;
-	}
+    }
     */
     // checks if pid is a child of current process
     if (!is_parent(pid, curthread->t_pid)) {
+	kprintf("pid is not a child of current thread\n");
         return ECHILD;
     }
 
     // cannot wait for ourselves
     if (pid == curthread->t_pid) {
+	kprintf("attempted to wait for ourselves\n");
         return ECHILD;
     }
     // WNOHANG to not wait for process, options to wait
-	int ret = pid_join(pid, status, options);
+    kprintf("starting pid_join with status %d and option %d\n",
+	    *status, options);
+    int ret = pid_join(pid, status, options);
     kprintf("status: %d\n", ret);
     return ret;
 }
