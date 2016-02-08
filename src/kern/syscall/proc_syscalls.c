@@ -11,7 +11,7 @@
 #include <pid.h>
 #include <machine/trapframe.h>
 #include <syscall.h>
-#include <wait.h>
+#include <kern/wait.h>
 
 /*
  * sys_fork

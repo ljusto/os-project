@@ -342,7 +342,7 @@ pid_detach(pid_t childpid)
 bool
 is_parent(pid_t pidA, pid_t pidB) {
     lock_acquire(pidlock);
-    pidinfo *child = pi_get(pidA);
+    struct pidinfo *child = pi_get(pidA);
     if (child == NULL) {
         kprintf("child (first arg) does not exist!\n");
         lock_release(pidlock);
@@ -374,7 +374,7 @@ pid_exit(int status, bool dodetach)
 	KASSERT(my_pi != NULL);
 	kprintf("dodetach: %d\n", (int) dodetach);
 	if (dodetach) {
-		kprintf("entered dodetach loop\n")
+		kprintf("entered dodetach loop\n");
 		for (int i = 0; i < PROCS_MAX; i++) {
 			// if the process is not empty and if its parent is ourselves
 			// then we will detach 
