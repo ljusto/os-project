@@ -41,6 +41,8 @@
 #include <syscall.h>
 #include <test.h>
 
+#include <pid.h>
+
 /*
  * In-kernel menu and command dispatcher.
  */
@@ -167,6 +169,9 @@ common_prog(int nargs, char **args)
 {
 	int result;
 	char **args_copy;
+	int status, exitstatus;
+	pid_t pid;
+	bool dodetach = false;
 #if OPT_SYNCHPROBS
 	kprintf("Warning: this probably won't work with a "
 		"synchronization-problems kernel.\n");
@@ -175,24 +180,37 @@ common_prog(int nargs, char **args)
 	/* demke: Make a copy of arguments to pass to new thread,
 	 * so that we aren't depending on parent's stack!
 	 */
+
 	args_copy = copy_args(nargs, args);
 	if (!args_copy) {
 		return ENOMEM;
 	}
-
+	// check if there is a "&" as the last argument. if so, do not wait
+	if (!strcmp(args_copy[nargs - 1], "&")) {
+		kprintf("found a &");
+		args_copy[nargs - 1] = NULL;
+		nargs--;
+		dodetach = true;
+	}
+	kprintf("last arg: %s\n", args_copy[nargs-1]);
 	/* demke: and now call thread_fork with the copy */
-	
+	// result = pid of the new process
 	result = thread_fork(args_copy[0] /* thread name */,
 			cmd_progthread /* thread function */,
 			args_copy /* thread arg */, nargs /* thread arg */,
-			NULL);
+			&pid);
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
 		/* demke: need to free copy of args if fork fails */
 		free_args(nargs, args_copy);
 		return result;
-	}
-
+	} else if (!dodetach) {
+		exitstatus = pid_join(pid, &status, 0);
+		if (exitstatus < 0) {
+			return -(exitstatus);
+		}
+	} 
+	pid_detach(pid);
 	return 0;
 }
 
@@ -704,7 +722,6 @@ cmd_dispatch(char *cmd)
 			gettime(&beforesecs, &beforensecs);
 
 			result = cmdtable[i].func(nargs, args);
-
 			gettime(&aftersecs, &afternsecs);
 			getinterval(beforesecs, beforensecs,
 				    aftersecs, afternsecs,

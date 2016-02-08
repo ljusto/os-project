@@ -19,15 +19,16 @@ dofork(int exitval, int nloops)
 	int pid, i;
 	pid = fork();
 	if (pid < 0) {
-		warn("fork failed.");
+		warn("fork failed.\n");
 	}
 	if (pid == 0) {
-		warnx("child starting loop.");
+		warnx("child starting loop.\n");
 		for (i=0; i < nloops; i++) {
+			// warnx("getting pid of %d\n", i);
 			pid = getpid();
+			// warnx("got pid %d\n", pid);
 		}
-		warnx("child exiting with %d.",exitval);
-		
+		//warnx("child exiting with %d.\n",exitval);
 		exit(exitval);
 	}
 	return pid;
@@ -45,8 +46,9 @@ main()
 	/* Wait for child - parent should have to wait */ 
 	warnx("Creating long-running child.  Parent should have to wait.");
 	pid = dofork(10, 10000);
+	//warnx("initializing waitpid\n");
 	result = waitpid(pid, &status, 0);
-	warnx("pid %d and result %d\n", pid, result);
+	//warnx("pid %d and result %d\n", pid, result);
 	if (result != pid) {
 		warn("unexpected result %d from waitpid, status %d.",result,status);
 	} else {

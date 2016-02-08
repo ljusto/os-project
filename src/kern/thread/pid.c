@@ -410,28 +410,29 @@ pid_join(pid_t targetpid, int *status, int flags)
 	pid = pi_get(targetpid);
 	if (pid == NULL) {
 	  	lock_release(pidlock);
-	  	return ESRCH * (-1);
+	  	return -ESRCH;
     }
 	/* check if current thread is invalid pid or kernel level process */ 
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
 		kprintf("FIRST CASE\n");
 	  	lock_release(pidlock);
-	  	return EINVAL * (-1);
+	  	return -EINVAL;
     }
     if (curthread->t_pid == pid->pi_pid) {
 	  	lock_release(pidlock);
-	  	return EDEADLK * (-1);
+	  	return -EDEADLK;
     }
 	/* check for the detached state */ 
 	if ((pid->pi_ppid == INVALID_PID)) {
 	    kprintf("SECOND CASE\n");
 	    lock_release(pidlock);
-	    return EINVAL * (-1);
+	    return -EINVAL;
 	}
-	if (!pid->pi_exited && flags != WNOHANG) {
+    if (!pid->pi_exited && flags != WNOHANG) {
         cv_wait(pid->pi_cv, pidlock);
     }
 	*status = pid->pi_exitstatus;
 	lock_release(pidlock);
-	return *status;
+	kprintf("returning pid %d\n", pid->pi_pid);
+	return (int) pid->pi_pid;
 }
