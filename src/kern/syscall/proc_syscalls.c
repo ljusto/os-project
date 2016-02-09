@@ -68,7 +68,7 @@ sys_getpid()
 pid_t 
 sys_waitpid(pid_t pid, int *status, int options)
 {
-    if (options != 0 ) {
+    if (options != 0 && options != WNOHANG) {
 	return -EINVAL;
     }
     if (status == NULL) {
@@ -96,7 +96,8 @@ sys_waitpid(pid_t pid, int *status, int options)
 	    *status, options);
     int ret = pid_join(pid, status, options);
     
-    kprintf("status: %d\n", ret);
+    //kprintf("status: %d\n", *status);
+    //kprintf("ret: %d\n", ret);
     return ret;
 }
 

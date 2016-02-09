@@ -315,22 +315,23 @@ int
 pid_detach(pid_t childpid)
 {
 	struct pidinfo *child;
-	if (!lock_do_i_hold(pidlock)) {
+	bool lockh = lock_do_i_hold(pidlock);
+	if (!lockh) {
 		lock_acquire(pidlock);
 	}
 	if ((child = pi_get(childpid)) == NULL) {
-	  	lock_release(pidlock);
+	  	if (!lockh) lock_release(pidlock);
 	  	return ESRCH;
     	}
     	if ((child->pi_pid == INVALID_PID) || (child->pi_pid == BOOTUP_PID)) {
-	  	lock_release(pidlock);
+	  	if (!lockh) lock_release(pidlock);
 	  	return EINVAL;
     }
     child->pi_ppid = INVALID_PID;
     //if (child->pi_exited) {
     	//pi_drop(child->pi_pid);
     //}
-    lock_release(pidlock);
+    if (!lockh) lock_release(pidlock);
 	return 0;
 }
 
@@ -374,14 +375,14 @@ pid_exit(int status, bool dodetach)
 	KASSERT(my_pi != NULL);
 	kprintf("dodetach: %d\n", (int) dodetach);
 	if (dodetach) {
-		kprintf("entered dodetach loop\n");
+		//kprintf("entered dodetach loop\n");
 		for (int i = 0; i < PROCS_MAX; i++) {
 			// if the process is not empty and if its parent is ourselves
 			// then we will detach 
 			if (pidinfo[i] != NULL && pidinfo[i]->pi_ppid == my_pi->pi_pid) {
-				kprintf("attempting to detach\n");
+				//kprintf("attempting to detach\n");
 				pid_detach(pidinfo[i]->pi_pid);
-				kprintf("detatched successfully\n");
+				//kprintf("detatched successfully\n");
 			}
 		}
 	}
@@ -404,27 +405,32 @@ pid_exit(int status, bool dodetach)
 int
 pid_join(pid_t targetpid, int *status, int flags)
 {
+	//kprintf("entered pid_join\n");
 	struct pidinfo *pid;	
 	// Implement me.
 	lock_acquire(pidlock);
+	//kprintf("acquired lock\n");
 	pid = pi_get(targetpid);
+	//kprintf("got pid\n");
 	if (pid == NULL) {
+		kprintf("ESRCH CASE\n");
 	  	lock_release(pidlock);
 	  	return -ESRCH;
     }
 	/* check if current thread is invalid pid or kernel level process */ 
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
-		kprintf("FIRST CASE\n");
+		kprintf("FIRST EINVAL CASE\n");
 	  	lock_release(pidlock);
 	  	return -EINVAL;
     }
     if (curthread->t_pid == pid->pi_pid) {
 	  	lock_release(pidlock);
+		kprintf("DEADLK CASE\n");
 	  	return -EDEADLK;
     }
 	/* check for the detached state */ 
 	if ((pid->pi_ppid == INVALID_PID)) {
-	    kprintf("SECOND CASE\n");
+	    kprintf("SECOND EINVAL CASE\n");
 	    lock_release(pidlock);
 	    return -EINVAL;
 	}
@@ -433,6 +439,6 @@ pid_join(pid_t targetpid, int *status, int flags)
     }
 	*status = pid->pi_exitstatus;
 	lock_release(pidlock);
-	kprintf("returning pid %d\n", pid->pi_pid);
+	//kprintf("returning pid %d\n", pid->pi_pid);
 	return (int) pid->pi_pid;
 }

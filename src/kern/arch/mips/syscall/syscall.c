@@ -143,7 +143,8 @@ syscall(struct trapframe *tf)
             case SYS_waitpid:
 		retval = sys_waitpid(tf->tf_a0, (int *)tf->tf_a1, tf->tf_a2);
 		if (retval < 0) err = -retval;
-		kprintf("err in SYS_waitpid is %d\n", err);
+		else err = 0;
+		//kprintf("err in SYS_waitpid is %d\n", err);
 		break;
 
             case SYS_kill:
