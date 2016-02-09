@@ -75,4 +75,9 @@ int pid_join(pid_t targetpid, int *status, int flags);
  */
 bool is_parent(pid_t pidA, pid_t pidB);
 
+/*
+ * Returns true if the given process is in the process table
+ */
+bool in_table(pid_t pid);
+
 #endif /* _PID_H_ */

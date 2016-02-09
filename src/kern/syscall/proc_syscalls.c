@@ -105,6 +105,36 @@ sys_waitpid(pid_t pid, int *status, int options)
  * sys_kill
  * Placeholder comment to remind you to implement this.
  */
+int
+sys_kill(pid_t pid, int sig)
+{
+	int implemented[9] = {0, 1, 2, 9, 15, 17, 19, 28, 29};
+	bool valid = false;
+	if (sig < 0 || sig > 31) {
+		return EINVAL;
+	}
+	for (int i = 0; i < sizeof(implemented) / sizeof(implemented[0]; i++) {
+		if (implemented[i] == sig) 
+			valid = true;
+	}
+	if (!valid) {
+		return EUNIMP;
+	}
 
+	if (!in_table(pid)) {
+		return ESRCH;
+	}
+	
+	
+	
+	
+	// implement 1, 2, 9, 15, 17, 19, 28, 29
+	// if sig is 0, then no signal is sent but error checking still occurs
+	// returns 0 on success, -1 on error and errno is set appropriately
+	// check for EINVAL, EUNIMP, ESRCH
+
+
+
+}
 
 

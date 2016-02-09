@@ -354,6 +354,19 @@ is_parent(pid_t pidA, pid_t pidB) {
 }
 
 /*
+ * in_table
+ * - returns true if given pid_t is in the process table
+ */
+bool
+in_table(pid_t pid) {
+	lock_acquire(pidlock);
+	bool ret = pi_get(pid);
+	lock_release(pidlock);
+	return (ret != NULL);
+}
+
+
+/*
  * pid_exit 
  *  - sets the exit status of this thread (i.e. curthread). 
  *  - disowns children. 
