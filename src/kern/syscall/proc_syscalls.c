@@ -108,6 +108,10 @@ sys_waitpid(pid_t pid, int *status, int options)
 int
 sys_kill(pid_t pid, int sig)
 {
+	// implement 1, 2, 9, 15, 17, 19, 28, 29
+	// if sig is 0, then no signal is sent but error checking still occurs
+	// returns 0 on success, -1 on error and errno is set appropriately
+	// check for EINVAL, EUNIMP, ESRCH
 	int implemented[9] = {0, 1, 2, 9, 15, 17, 19, 28, 29};
 	bool valid = false;
 	if (sig < 0 || sig > 31) {
@@ -124,17 +128,8 @@ sys_kill(pid_t pid, int sig)
 	if (!in_table(pid)) {
 		return ESRCH;
 	}
-	
-	
-	
-	
-	// implement 1, 2, 9, 15, 17, 19, 28, 29
-	// if sig is 0, then no signal is sent but error checking still occurs
-	// returns 0 on success, -1 on error and errno is set appropriately
-	// check for EINVAL, EUNIMP, ESRCH
-
-
-
+	// needs to set the flag of pid's thread to sig
+	// how do we get the thread struct of pid?
 }
 
 

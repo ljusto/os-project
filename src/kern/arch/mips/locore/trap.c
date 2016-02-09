@@ -183,7 +183,7 @@ mips_trap(struct trapframe *tf)
 		else {
 			doadjust = false;
 		}
-
+		
 		mainbus_interrupt(tf);
 
 		if (doadjust) {
@@ -429,3 +429,32 @@ enter_new_process(int argc, userptr_t argv, vaddr_t stack, vaddr_t entry)
 
 	mips_usermode(&tf);
 }
+
+
+void
+signal_handler(int sig)
+{
+	switch (sig) {
+		case 1:  		// SIGHUP
+		case 2:			// SIGINT
+		case 9:			// SIGKILL
+		case 15:		// SIGTERM
+			// terminate process
+			break;
+		case 17:		// SIGSTOP
+			// stop process from executing until SIGCONT (19) received
+			break;
+		case 19:		// SIGCONT
+			// start process again if SIGSTOP (17) received
+			break;
+		case 28:		// SIGWINCH
+		case 29:		// SIGINFO
+		case 0:			// DEFAULT SIGNAL
+			// ignore signal, but check for errors (done above)
+			break;
+}
+
+
+
+
+
