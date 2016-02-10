@@ -56,6 +56,7 @@ struct pidinfo {
 	volatile bool pi_exited;	// true if thread has exited
 	int pi_exitstatus;		// status (only valid if exited)
 	struct cv *pi_cv;		// use to wait for thread exit
+	int flag;
 };
 
 
@@ -100,7 +101,7 @@ pidinfo_create(pid_t pid, pid_t ppid)
 	pi->pi_ppid = ppid;
 	pi->pi_exited = false;
 	pi->pi_exitstatus = 0xbaad;  /* Recognizably invalid value */
-
+	pi->flag = 0; // initialize this to 0 for now...
 	return pi;
 }
 
@@ -488,3 +489,39 @@ pid_join(pid_t targetpid, int *status, int flags)
     	}
     	return (int) pid->pi_pid;
 }
+
+/*
+ * Sets the flag of the pidinfo struct according to the given pid, if it is there.
+ */
+void
+set_flag(pid_t pid, int sig) 
+{
+	// assuming error checking has already been done
+	lock_acquire(pidlock);
+	pidinfo *pi = pi_get(pid);
+	if (pi != NULL) {
+		pi->flag = sig;
+	}
+	lock_release(pidlock);
+
+}
+
+/*
+ * Returns -1 if the pid given is not in the process table
+ */
+int
+get_flag(pid_t pid) 
+{
+	lock_acquire(pidlock);
+	pidinfo *pi = pi_get(pid);
+	if (pi != NULL) {
+		lock_release(pidlock);
+		return pi->flag;
+	}
+	lock_release(pidlock);
+	return -1;
+}
+
+
+
+

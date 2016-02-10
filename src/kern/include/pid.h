@@ -79,5 +79,14 @@ bool is_parent(pid_t pidA, pid_t pidB);
  * Returns true if the given process is in the process table
  */
 bool in_table(pid_t pid);
+/*
+ * Sets the flag of the pidinfo struct according to the given pid, if it is there.
+ */
+void set_flag(pid_t pid, int sig);
+
+/*
+ * Returns flag of pidinfo struct, -1 if the pid given is not in the process table
+ */
+int get_flag(pid_t pid);
 
 #endif /* _PID_H_ */

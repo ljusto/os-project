@@ -158,7 +158,7 @@ thread_create(const char *name)
 
 	/* If you add to struct thread, be sure to initialize here */
 
-	thread->flag = 0  // what to initialize this to? 0 for now... [A1 TASK 3]
+	// thread->flag = 0  // what to initialize this to? 0 for now...
 
 	return thread;
 }

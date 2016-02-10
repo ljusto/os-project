@@ -116,9 +116,10 @@ struct thread {
 
 	/* add more here as needed */
 	
-
+	/*
 	// flag used for sending signals [TASK 3 A1]
 	int flag;
+	*/
 };
 
 /* Call once during system startup to allocate data structures. */
