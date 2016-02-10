@@ -82,18 +82,14 @@ sys_waitpid(pid_t pid, int *status, int options)
     */
     // checks if pid is a child of current process
     if (!is_parent(pid, curthread->t_pid)) {
-	kprintf("pid is not a child of current thread\n");
         return -ECHILD;
     }
 
     // cannot wait for ourselves
     if (pid == curthread->t_pid) {
-	kprintf("attempted to wait for ourselves\n");
         return -ECHILD;
     }
     // WNOHANG to not wait for process, options to wait
-    kprintf("starting pid_join with status %d and option %d\n",
-	    *status, options);
     int ret = pid_join(pid, status, options);
     
     //kprintf("status: %d\n", *status);
@@ -105,31 +101,31 @@ sys_waitpid(pid_t pid, int *status, int options)
  * sys_kill
  * Placeholder comment to remind you to implement this.
  */
-int
-sys_kill(pid_t pid, int sig)
-{
+//int
+//sys_kill(pid_t pid, int sig)
+//{
 	// implement 1, 2, 9, 15, 17, 19, 28, 29
 	// if sig is 0, then no signal is sent but error checking still occurs
 	// returns 0 on success, -1 on error and errno is set appropriately
 	// check for EINVAL, EUNIMP, ESRCH
-	int implemented[9] = {0, 1, 2, 9, 15, 17, 19, 28, 29};
-	bool valid = false;
-	if (sig < 0 || sig > 31) {
-		return EINVAL;
-	}
-	for (int i = 0; i < sizeof(implemented) / sizeof(implemented[0]; i++) {
-		if (implemented[i] == sig) 
-			valid = true;
-	}
-	if (!valid) {
-		return EUNIMP;
-	}
-
-	if (!in_table(pid)) {
-		return ESRCH;
-	}
+//	int implemented[9] = {0, 1, 2, 9, 15, 17, 19, 28, 29};
+//	bool valid = false;
+//	if (sig < 0 || sig > 31) {
+//		return EINVAL;
+//	}
+//	for (int i = 0; i < sizeof(implemented) / sizeof(implemented[0]; i++) {
+//		if (implemented[i] == sig) 
+//			valid = true;
+//	}
+//	if (!valid) {
+//		return EUNIMP;
+//	}
+//
+//	if (!in_table(pid)) {
+//		return ESRCH;
+//	}
 	// needs to set the flag of pid's thread to sig
 	// how do we get the thread struct of pid?
-}
+//}
 
-
+	

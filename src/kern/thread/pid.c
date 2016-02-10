@@ -326,7 +326,7 @@ pid_detach(pid_t childpid)
     	if ((child->pi_pid == INVALID_PID) || (child->pi_pid == BOOTUP_PID)) {
 	  	if (!lockh) lock_release(pidlock);
 	  	return EINVAL;
-    }
+    	}
     child->pi_ppid = INVALID_PID;
     //if (child->pi_exited) {
     	//pi_drop(child->pi_pid);
@@ -342,14 +342,20 @@ pid_detach(pid_t childpid)
  */
 bool
 is_parent(pid_t pidA, pid_t pidB) {
-    lock_acquire(pidlock);
+    bool lock_hold = lock_do_i_hold(pidlock);
+    if (!lock_hold) {
+    	lock_acquire(pidlock);
+    }
     struct pidinfo *child = pi_get(pidA);
     if (child == NULL) {
-        kprintf("child (first arg) does not exist!\n");
-        lock_release(pidlock);
+	if (!lock_hold) {
+    	   lock_release(pidlock);
+    	}
         return false;
     }
-    lock_release(pidlock);
+    if (!lock_hold) {
+    	lock_release(pidlock);
+    }
     return (child->pi_ppid == pidB);
 }
 
@@ -359,9 +365,14 @@ is_parent(pid_t pidA, pid_t pidB) {
  */
 bool
 in_table(pid_t pid) {
-	lock_acquire(pidlock);
-	bool ret = pi_get(pid);
-	lock_release(pidlock);
+	bool lock_hold = lock_do_i_hold(pidlock);
+	if (!lock_hold) {
+    		lock_acquire(pidlock);
+    	}
+	struct pidinfo *ret = pi_get(pid);
+	if (!lock_hold) {
+    		lock_release(pidlock);
+    	}
 	return (ret != NULL);
 }
 
@@ -379,14 +390,18 @@ void
 pid_exit(int status, bool dodetach)
 {
 	struct pidinfo *my_pi;
-	lock_acquire(pidlock);
+	bool lock_hold = lock_do_i_hold(pidlock);
+	if (!lock_hold) {
+    		lock_acquire(pidlock);
+    	}
 	/* critical section start */
 	if ((my_pi = pi_get(curthread->t_pid)) == NULL) {
-		lock_release(pidlock);
+		if (!lock_hold) {
+    			lock_release(pidlock);
+    		}
 		return;
 	}
 	KASSERT(my_pi != NULL);
-	kprintf("dodetach: %d\n", (int) dodetach);
 	if (dodetach) {
 		//kprintf("entered dodetach loop\n");
 		for (int i = 0; i < PROCS_MAX; i++) {
@@ -406,7 +421,9 @@ pid_exit(int status, bool dodetach)
 		pi_drop(my_pi->pi_pid);
 	}
 	/* critical section end */
-	lock_release(pidlock);
+	if (!lock_hold) {
+    		lock_release(pidlock);
+    	}
 }
 
 /*
@@ -420,38 +437,54 @@ pid_join(pid_t targetpid, int *status, int flags)
 {
 	//kprintf("entered pid_join\n");
 	struct pidinfo *pid;	
+	bool lock_hold = lock_do_i_hold(pidlock);
 	// Implement me.
-	lock_acquire(pidlock);
+	if (!lock_hold) {
+    		lock_acquire(pidlock);
+    	}
 	//kprintf("acquired lock\n");
 	pid = pi_get(targetpid);
 	//kprintf("got pid\n");
 	if (pid == NULL) {
-		kprintf("ESRCH CASE\n");
-	  	lock_release(pidlock);
+	  	if (!lock_hold) {
+    			lock_release(pidlock);
+    		}
 	  	return -ESRCH;
-    }
+        }
 	/* check if current thread is invalid pid or kernel level process */ 
 	if ((pid->pi_pid == INVALID_PID) || (pid->pi_pid == BOOTUP_PID)) {
-		kprintf("FIRST EINVAL CASE\n");
-	  	lock_release(pidlock);
+	  	if (!lock_hold) {
+    			lock_release(pidlock);
+    		}
 	  	return -EINVAL;
-    }
-    if (curthread->t_pid == pid->pi_pid) {
-	  	lock_release(pidlock);
-		kprintf("DEADLK CASE\n");
-	  	return -EDEADLK;
-    }
-	/* check for the detached state */ 
-	if ((pid->pi_ppid == INVALID_PID)) {
-	    kprintf("SECOND EINVAL CASE\n");
-	    lock_release(pidlock);
-	    return -EINVAL;
-	}
-    if (!pid->pi_exited && flags != WNOHANG) {
-        cv_wait(pid->pi_cv, pidlock);
-    }
-	*status = pid->pi_exitstatus;
-	lock_release(pidlock);
-	//kprintf("returning pid %d\n", pid->pi_pid);
-	return (int) pid->pi_pid;
+        }
+    	if (curthread->t_pid == pid->pi_pid) {
+		if (!lock_hold) {
+    	    		lock_release(pidlock);
+   		}
+ 		return -EDEADLK;
+    	}
+    	/* check for the detached state */ 
+    	if ((pid->pi_ppid == INVALID_PID)) {
+    		if (!lock_hold) {
+    	    		lock_release(pidlock);
+    		}
+		return -EINVAL;
+    	}
+    	if (!pid->pi_exited && flags != WNOHANG) {
+        	cv_wait(pid->pi_cv, pidlock);
+    	}
+    	else {
+ 		if (!lock_hold) {
+    			lock_release(pidlock);
+		}
+		return 0;
+    	}
+    	if (status != NULL) {
+        	*status = pid->pi_exitstatus;
+    	}
+    	if (!lock_hold) {
+    		lock_release(pidlock);
+    	}
+    	return (int) pid->pi_pid;
 }
