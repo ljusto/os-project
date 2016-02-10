@@ -185,6 +185,7 @@ common_prog(int nargs, char **args)
 	if (!args_copy) {
 		return ENOMEM;
 	}
+	// check if there is a "&" as the last argument. if so, do not wait
 	if (!strcmp(args_copy[nargs - 1], "&")) {
 		kprintf("found a &");
 		args_copy[nargs - 1] = NULL;
