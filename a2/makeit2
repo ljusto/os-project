@@ -1,5 +1,0 @@
-cd ~/cscc69/starter-code/os-project/a2/src/kern/compile/ASST2
-bmake install
-cd ../../..
-bmake
-bmake install

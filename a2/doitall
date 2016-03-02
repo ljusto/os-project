@@ -1,5 +1,0 @@
-echo Run this when you are sure there are no errors
-
-sh makeit
-sh makeit2
-sh runit
