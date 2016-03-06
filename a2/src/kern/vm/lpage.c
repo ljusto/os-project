@@ -37,6 +37,7 @@
 #include <vm.h>
 #include <vmprivate.h>
 #include <machine/coremap.h>
+#include <array.h>
 
 /* 
  * lpage operations
@@ -422,11 +423,71 @@ lpage_zerofill(struct lpage **lpret)
 int
 lpage_fault(struct lpage *lp, struct addrspace *as, int faulttype, vaddr_t va)
 {
-	(void)lp;	// suppress compiler warning until code gets written
-	(void)as;	// suppress compiler warning until code gets written
-	(void)faulttype;// suppress compiler warning until code gets written
-	(void)va;	// suppress compiler warning until code gets written
-	return EUNIMP;	// suppress compiler warning until code gets written
+	// lp - page that has faulted
+	// va - address being tried to accessed
+
+	/*
+	struct addrspace {
+		struct vm_object_array *as_objects;
+		vm_object_array: (vm_object_array_)num, get, set, add
+		array of vm_objects 
+	}
+        */
+       	
+	/*
+	 * 1. Check if lp is in TLB. if not, check addrspace's vm_object_array for page table entry
+	 * 2. Write page table entry into TLB and update TLB
+	 * 
+	 * 1. Check if lp->paddr == INVALID_PADDR (not in physical memory)
+	 * 2. Get the page from swap space (or check if it is there)
+	 * 3. If page is not in swap space, create new lpage and put it in TLB
+	 *
+	 */
+
+	// check if the lp is in TLB
+	if (tlb_probe(lp->paddr, 0) >= 0) {
+		// then lp is in TLB, not a fault!
+	} else if ( {
+		// not in TLB, might be in page table
+		/* Find the vm_object concerned */
+		for (i=0; i < vm_object_array_num(as->as_objects); i++) {
+			struct vm_object *vmo;
+			vmo = vm_object_array_get(as->as_objects, i);
+			bot = vmo->vmo_base;
+			top = bot + PAGE_SIZE * lpage_array_num(vmo->vmo_lpages);
+			if (va >= bot && va < top) {
+				faultobj = vmo;
+				break;
+			}
+		}
+		
+
+		// write the page into TLB
+		mmu_map(dsgfdhfgjhfg);
+	}
+
+	
+	if (oldpa == INVALID_PADDR) {
+		/*
+		 * XXX this is mostly copied from lpage_fault
+		 */
+		swa = lp->lp_swapaddr;
+		lpage_unlock(oldlp);
+		oldpa = coremap_allocuser(oldlp);
+		if (oldpa == INVALID_PADDR) {
+			coremap_unpin(newlp->lp_paddr & PAGE_FRAME);
+			lpage_destroy(newlp);
+			return ENOMEM;
+		}
+		KASSERT(coremap_pageispinned(oldpa));
+		lock_acquire(global_paging_lock);
+		swap_pagein(oldpa, swa);
+		lpage_lock(oldlp);
+		lock_release(global_paging_lock);
+		/* Assert nobody else did the pagein. */
+		KASSERT((oldlp->lp_paddr & PAGE_FRAME) == INVALID_PADDR);
+		oldlp->lp_paddr = oldpa;
+	}
 }
 
 /*
@@ -444,4 +505,8 @@ void
 lpage_evict(struct lpage *lp)
 {
 	(void)lp;	// suppress compiler warning until code gets written
+	
 }
+
+
+

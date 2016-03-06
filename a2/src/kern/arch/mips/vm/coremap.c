@@ -115,6 +115,7 @@ static uint32_t num_coremap_user;	/* pages allocated to user progs */
 static uint32_t num_coremap_free;	/* pages not allocated at all */
 static uint32_t base_coremap_page;
 static struct coremap_entry *coremap;
+static unsigned int previous_index;	/* [ASST2 ADDED - TRACKS PREVIOUSLY REMOVED INDEX]
 
 static volatile uint32_t ct_shootdowns_sent;
 static volatile uint32_t ct_shootdowns_done;
@@ -362,8 +363,13 @@ static
 uint32_t 
 page_replace(void)
 {
-    // Complete this function.
-	return 0;
+	// generate random index 
+	unsigned int random_index = rand(0, num_coremap_entries - 1);
+	while (!(coremap[random_index].cm_pinned || coremap[random_index].cm_kernel)) {
+		random_index = rand(0, num_coremap_entries - 1);
+	}
+	return (uint32_t) random_index;
+	
 }
 
 #else /* not OPT_RANDPAGE */
@@ -379,8 +385,15 @@ static
 uint32_t
 page_replace(void)
 {
-	// Complete this function.
-	return 0;
+	struct coremap_entry cme = coremap[previous_index];
+	while (!(cme.cm_pinned || cme.cm_kernel)) {
+		previous_index = (++previous_index) % num_coremap_entries;
+		cme = coremap[previous_index];
+	}
+	// increment previous_index so on next call we don't remove one we just added
+	previous_index = (++previous_index) % num_coremap_entries;
+	return (uint32_t) previous_index;
+	
 }
 
 #endif /* OPT_RANDPAGE */
@@ -463,6 +476,7 @@ coremap_bootstrap(void)
 	num_coremap_kernel = 0;
 	num_coremap_user = 0;
 	num_coremap_free = num_coremap_entries;
+	previous_index = 0; /* [ASST2] initialize previous index to 0 */
 
 	KASSERT(num_coremap_entries + (coremapsize/PAGE_SIZE) == npages);
 
