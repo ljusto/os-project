@@ -115,7 +115,7 @@ static uint32_t num_coremap_user;	/* pages allocated to user progs */
 static uint32_t num_coremap_free;	/* pages not allocated at all */
 static uint32_t base_coremap_page;
 static struct coremap_entry *coremap;
-static unsigned int previous_index;	/* [ASST2 ADDED - TRACKS PREVIOUSLY REMOVED INDEX]
+static unsigned int previous_index;	// [ASST2 ADDED - TRACKS PREVIOUSLY REMOVED INDEX]
 
 static volatile uint32_t ct_shootdowns_sent;
 static volatile uint32_t ct_shootdowns_done;
@@ -364,13 +364,32 @@ uint32_t
 page_replace(void)
 {
 	// generate random index 
-	unsigned int random_index = rand(0, num_coremap_entries - 1);
-	while (!(coremap[random_index].cm_pinned || coremap[random_index].cm_kernel)) {
-		random_index = rand(0, num_coremap_entries - 1);
+	unsigned int random_index = generate_random_number(num_coremap_entries);
+
+	// numbers_checked[random_index] = 1;
+	while (coremap[random_index].cm_pinned || coremap[random_index].cm_kernel) {
+		random_index = generate_random_number(num_coremap_entries);
 	}
 	return (uint32_t) random_index;
 	
 }
+
+/*
+ * Generates a random number between 0 and max, non-inclusive max.
+ * e.g., generate_random_number(5) outputs x in {0, 1, 2, 3, 4}
+ */
+int
+generate_random_number(int max)
+{
+	int random_number = random();
+	if (random_number < 0) {
+		random_number = -random_number;
+	}
+	random_number = random_number % (max - 1);
+	// kprintf("random number: %d\n", random_number);
+	return random_number;
+}
+
 
 #else /* not OPT_RANDPAGE */
 
@@ -386,13 +405,17 @@ uint32_t
 page_replace(void)
 {
 	struct coremap_entry cme = coremap[previous_index];
-	while (!(cme.cm_pinned || cme.cm_kernel)) {
-		previous_index = (++previous_index) % num_coremap_entries;
+	int old;
+	while (cme.cm_pinned || cme.cm_kernel) {
+		previous_index = (previous_index + 1) % num_coremap_entries;
+		// kprintf("previous index set to: %d\n", previous_index);
 		cme = coremap[previous_index];
 	}
 	// increment previous_index so on next call we don't remove one we just added
-	previous_index = (++previous_index) % num_coremap_entries;
-	return (uint32_t) previous_index;
+	old = previous_index;
+	previous_index = (previous_index + 1) % num_coremap_entries;
+	// kprintf("returning %d, setting previous index to %d\n", old, previous_index);
+	return (uint32_t) old;
 	
 }
 
