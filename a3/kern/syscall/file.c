@@ -9,6 +9,11 @@
 #include <kern/limits.h>
 #include <kern/stat.h>
 #include <kern/unistd.h>
+#include <kern/fcntl.h>
+#include <synch.h>
+#include <current.h>
+#include <vfs.h>
+#include <vnode.h>
 #include <file.h>
 #include <syscall.h>
 
@@ -26,32 +31,40 @@
 int
 file_open(char *filename, int flags, int mode, int *retfd)
 {
+	int fd_index;
 	// open file, vnode will be in vn
 	if (filename || filename == NULL) {
-		printf("null pointer");
+		kprintf("null pointer");
 		return -1;
 	}
 	if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR) {
-		printf("invalid flag");
+		kprintf("invalid flag");
 		return -1;
 	}
 
 	// find the first available index in file table
 	int i = 0;
 	struct filetable *ft = curthread->t_filetable;
-	while (ft[i] != NULL && i < 10 /*size of file table*/) {
+	while (&(ft[i]) && i < __OPEN_MAX /*size of file table*/) {
 		i++;
 	}
-	struct vnode vn;
+	struct vnode *vn;
 	vfs_open(filename, flags, mode, &vn);
 	// create file table entry for this file
-	struct fd_entry new;
+	struct fd_entry *new = kmalloc(sizeof(struct fd_entry));
+
+	new->fname = filename;
 	new->flags = 0;
-	new->fd_lock = // make lock?
-	new->vnode = vn;
+	new->fd_lock = lock_create("file lock");
+	new->vn = vn;
 	new->num_connected = 1;
 	new->file_offset = 0;
-	curthread->t_filetable[i] = vn;
+	//curthread->t_filetable[i] = *vn;
+
+
+	fd_index = filetable_getfd(ft);
+	ft->entries[fd_index] = new;
+	*retfd = fd_index;
 	return 0;
 
 
@@ -99,13 +112,20 @@ int file_dup2(int oldfd, int newfd, int *retval){
 int
 file_close(int fd)
 {
-	filetable_entry *fte = curthread->t_filetable[fd];
-	if (!lock_do_i_hold(fte->sync_lock)) {
-		lock_acquire(fte->sync_lock);
+	struct filetable *ft = curthread->t_filetable;
+	struct fd_entry *fte = ft->entries[fd];
+
+
+	if (!lock_do_i_hold(fte->fd_lock)) {
+		lock_acquire(fte->fd_lock);
 	}
+	ft->entries[fd] = NULL;
 	if (fte->num_connected == 1) {
-		vfs_close(fte->file);
-		curthread->t_filetable[fd] = NULL;
+		vfs_close(fte->vn);
+		lock_release(fte->fd_lock);
+		lock_destroy(fte->fd_lock);
+		kfree(fte);
+		//curthread->t_filetable[fd] = NULL;
 	} else {
 		fte->num_connected = fte->num_connected - 1;
 	}
@@ -152,19 +172,22 @@ filetable_init(void)
 	}
 	// open file descriptor 0 -- stdin
 	strcpy(file_name, "con:");
-	if (result = file_open(file_name, O_RDONLY, 0, &fd)){
+	result = file_open(file_name, O_RDONLY, 0, &fd);
+	if (result){
 		return result;
 	}
 
 	// open file descriptor 1 -- stdout
 	strcpy(file_name, "con:");
-	if (result = file_open(file_name, O_WRONLY, 0, &fd)){
+	result = file_open(file_name, O_WRONLY, 0, &fd);
+	if (result){
 		return result;
 	}
 
 	// open file descriptor 2 -- stderr
 	strcpy(file_name, "con:");
-	if (result = file_open(file_name, O_WRONLY, 0, &fd)){
+	result = file_open(file_name, O_WRONLY, 0, &fd);
+	if (result){
 		return result;
 	}
 	return 0;
@@ -200,5 +223,18 @@ filetable_destroy(struct filetable *ft)
  * the current file position) associated with that open file.
  */
 
+int filetable_getfd(struct filetable *ft) {
 
+
+
+	for (size_t i = 0; i < __OPEN_MAX; i++) {
+		if (ft->entries[i] == NULL) {
+			return i;
+		}
+	}
+
+	/* If not found any NULL entries, e.g. the table is full */
+	return -1;
+
+}
 /* END A3 SETUP */

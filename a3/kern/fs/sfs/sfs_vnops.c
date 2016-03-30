@@ -1571,7 +1571,7 @@ sfs_unimp(void)
 #define ISDIR ((void *)sfs_isdir)
 #define NOTDIR ((void *)sfs_notdir)
 #define UNIMP ((void *)sfs_unimp)
-
+//define sfs_getdirentry
 /*
  * Function table for sfs files.
  */
@@ -1606,42 +1606,6 @@ static const struct vnode_ops sfs_fileops = {
 	NOTDIR,  /* lookup */
 	NOTDIR,  /* lookparent */
 };
-
-/*
- * Function table for the sfs directory.
- */
-static const struct vnode_ops sfs_dirops = {
-	VOP_MAGIC,	/* mark this a valid vnode ops table */
-
-	sfs_eachopendir,
-	sfs_lastclose,
-	sfs_reclaim,
-	
-	ISDIR,   /* read */
-	ISDIR,   /* readlink */
-	sfs_getdirentry,   /* getdirentry */
-	ISDIR,   /* write */
-	sfs_ioctl,
-	sfs_stat,
-	sfs_gettype,
-	UNIMP,   /* tryseek */
-	sfs_fsync,
-	ISDIR,   /* mmap */
-	ISDIR,   /* truncate */
-	sfs_namefile,
-
-	sfs_creat,
-	UNIMP,   /* symlink */
-	UNIMP,   /* mkdir */
-	sfs_link,
-	sfs_remove,
-	UNIMP,   /* rmdir */
-	sfs_rename,
-
-	sfs_lookup,
-	sfs_lookparent,
-};
-
 static
 int
 sfs_getdirentry(struct vnode *filename, struct uio *uio){
@@ -1683,22 +1647,41 @@ sfs_getdirentry(struct vnode *filename, struct uio *uio){
 	}
 	vfs_biglock_release();
 	return 0;
-	}
+}
+/*
+ * Function table for the sfs directory.
+ */
+static const struct vnode_ops sfs_dirops = {
+	VOP_MAGIC,	/* mark this a valid vnode ops table */
 
+	sfs_eachopendir,
+	sfs_lastclose,
+	sfs_reclaim,
+	
+	ISDIR,   /* read */
+	ISDIR,   /* readlink */
+	sfs_getdirentry,   /* getdirentry */
+	ISDIR,   /* write */
+	sfs_ioctl,
+	sfs_stat,
+	sfs_gettype,
+	UNIMP,   /* tryseek */
+	sfs_fsync,
+	ISDIR,   /* mmap */
+	ISDIR,   /* truncate */
+	sfs_namefile,
 
+	sfs_creat,
+	UNIMP,   /* symlink */
+	UNIMP,   /* mkdir */
+	sfs_link,
+	sfs_remove,
+	UNIMP,   /* rmdir */
+	sfs_rename,
 
-
-
-
-
-
-
-
-
-
-
-
-
+	sfs_lookup,
+	sfs_lookparent,
+};
 
 
 

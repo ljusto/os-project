@@ -19,6 +19,7 @@
 #include <kern/unistd.h>
 #include <kern/limits.h>
 #include <kern/stat.h>
+#include <kern/seek.h>
 #include <copyinout.h>
 #include <synch.h>
 #include <file.h>
@@ -170,6 +171,11 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 	if (fd < 0 || fd > __OPEN_MAX - 1) {
 	  return EBADF;
 	}
+
+	file = curthread->t_filetable->entries[fd];
+	if (file == NULL){
+		return EBADF;
+  	}
 	lock_acquire(curthread->t_filetable->entries[fd]->fd_lock);
 	/* set up a uio with the buffer, its size, and the current offset */
 	mk_useruio(&user_iov, &user_uio, buf, size, offset, UIO_READ);
@@ -180,7 +186,7 @@ sys_read(int fd, userptr_t buf, size_t size, int *retval)
 		lock_release(file->fd_lock);
 		return result;
 	}
-	curthread->t_filetable->entries[fd]->file_offset = Uio.uio_offset;
+	file->file_offset = user_uio.uio_offset;
 	lock_release(curthread->t_filetable->entries[fd]->fd_lock);
 	/*
 	 * The amount read is the size of the buffer originally, minus
@@ -217,28 +223,33 @@ sys_write(int fd, userptr_t buf, size_t len, int *retval)
         struct iovec user_iov;
         int result;
         int offset = 0;
-
+        struct fd_entry *file;	
         /* Make sure we were able to init the cons_vnode */
         if (cons_vnode == NULL) {
           return ENODEV;
         }
+        file = curthread->t_filetable->entries[fd];
 
+        lock_acquire(file->fd_lock);
         /* Right now, only stdin (0), stdout (1) and stderr (2)
          * are supported, and they can't be redirected to a file
          */
         if (fd < 0 || fd > __OPEN_MAX) {
           return EBADF;
         }
-        lock_acquire(curthread->t_filetable->entries[fd]->fd_lock);
+       
         /* set up a uio with the buffer, its size, and the current offset */
         mk_useruio(&user_iov, &user_uio, buf, len, offset, UIO_WRITE);
 
         /* does the write */
-        result = VOP_WRITE(cons_vnode, &user_uio);
+        result = VOP_WRITE(file->vn, &user_uio);
         if (result) {
         	lock_release(file->fd_lock);
             return result;
         }
+        	file->file_offset = user_uio.uio_offset;
+ 			lock_release(file->fd_lock);
+
         /*
          * the amount written is the size of the buffer originally,
          * minus how much is left in it.
@@ -262,7 +273,9 @@ sys_lseek(int fd, off_t offset, int whence, off_t *retval)
 	if (fd < 0 || fd >= __OPEN_MAX) {
 		return EBADF;
 	}
-	if (file = curthread->t_filetable->entries[fd]) {
+
+	file = curthread->t_filetable->entries[fd];
+	if (file) {
 		return EBADF;
 	}
 	lock_acquire(file->fd_lock);
@@ -273,7 +286,7 @@ sys_lseek(int fd, off_t offset, int whence, off_t *retval)
 			break;
 		// Case SEEK_CUR: the new position is the current position plus offset. 
 		case SEEK_CUR:
-			*retval = offset + file->offset;
+			*retval = offset + file->file_offset;
 			break;
 		// Case SEEK_END: the new position is the position of end-of-file plus offset
 		case SEEK_END:
@@ -300,12 +313,12 @@ sys_lseek(int fd, off_t offset, int whence, off_t *retval)
 		lock_release(file->fd_lock);
 		return result;
 	}
-	file->offset = *retval;
+	file->file_offset = *retval;
 	lock_release(file->fd_lock);
 	return 0;
 }
 
-}
+
 
 
 /* really not "file" calls, per se, but might as well put it here */
@@ -396,7 +409,7 @@ sys_getdirentry(int fd, userptr_t buf, size_t buflen, int *retval)
 	//doing the reading
 	lock_acquire(curthread->t_filetable->entries[fd]->fd_lock);
 	/* set up a uio with the buffer, its size, and the current offset */
-	mk_useruio(&user_iov, &Uio, buf, buflen, curthread->t_filetable->entries[fd]->offset, UIO_READ);
+	mk_useruio(&user_iov, &Uio, buf, buflen, curthread->t_filetable->entries[fd]->file_offset, UIO_READ);
 	//does the reading
 	result = VOP_GETDIRENTRY(curthread->t_filetable->entries[fd]->vn, &Uio);
 	if (result) {
@@ -404,7 +417,7 @@ sys_getdirentry(int fd, userptr_t buf, size_t buflen, int *retval)
 		return result;
 	}
 	//get the valid result, then returned from file_read, return it
-	curthread->t_filetable->entries[fd]->offset = Uio.uio_offset;
+	curthread->t_filetable->entries[fd]->file_offset = Uio.uio_offset;
 	lock_release(curthread->t_filetable->entries[fd]->fd_lock);
 	*retval = buflen - Uio.uio_resid;
 	return 0;
