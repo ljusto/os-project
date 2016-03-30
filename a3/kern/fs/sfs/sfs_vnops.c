@@ -1654,6 +1654,12 @@ sfs_getdirentry(struct vnode *filename, struct uio *uio){
 	vfs_biglock_acquire();
 	//get the number of existing entries in the directory
 	s_vnode = filename->vn_data;
+	
+	// If is not a dir
+	if (s_vnode->sv_i.sfi_type != SFS_TYPE_DIR) {
+			return ENOTDIR;
+	}
+
 	num_entries = sfs_dir_nentries(s_vnode);
 	//get the offset of uio
 	u_offset = uio->uio_offset;
