@@ -22,7 +22,7 @@
 #include <kern/seek.h>
 #include <copyinout.h>
 #include <synch.h>
-#include <file.h>
+#include <file.h> 
 
 /* This special-case global variable for the console vnode should be deleted 
  * when you have a proper open file table implementation.
@@ -48,10 +48,10 @@ void dumb_consoleIO_bootstrap()
   result = vfs_open(path, O_RDWR, 0, &cons_vnode);
 
   if (result) {
-    /* Tough one... if there's no console, there's not
-     * much point printing a warning...
-     * but maybe the bootstrap was just called in the wrong place
-     */
+     // Tough one... if there's no console, there's not
+     // * much point printing a warning...
+     // * but maybe the bootstrap was just called in the wrong place
+     
     kprintf("Warning: could not initialize console vnode\n");
     kprintf("User programs will not be able to read/write\n");
     cons_vnode = NULL;
